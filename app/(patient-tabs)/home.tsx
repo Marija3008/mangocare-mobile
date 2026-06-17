@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
 
 import { AiInsightCard } from "@/features/dashboard/components/AiInsightCard";
 import { HealthScoreCard } from "@/features/dashboard/components/HealthScoreCard";
@@ -7,6 +7,7 @@ import { LatestLabCard } from "@/features/dashboard/components/LatestLabCard";
 import { QuickActions } from "@/features/dashboard/components/QuickActions";
 import { UpcomingConsultationCard } from "@/features/dashboard/components/UpcomingConsultationCard";
 import { useDashboard } from "@/features/dashboard/hooks/useDashboard";
+import { AppHeader } from "@/shared/components/AppHeader";
 
 import { Screen } from "@/shared/components/Screen";
 import { colors } from "@/shared/theme/colors";
@@ -21,9 +22,7 @@ export default function HomeScreen() {
       <Screen>
         <View style={styles.centerState}>
           <Text style={styles.stateTitle}>Loading dashboard...</Text>
-          <Text style={styles.stateText}>
-            Preparing your health overview.
-          </Text>
+          <Text style={styles.stateText}>Preparing your health overview.</Text>
         </View>
       </Screen>
     );
@@ -74,13 +73,11 @@ export default function HomeScreen() {
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>MangoCare Patient</Text>
-        <Text style={styles.title}>Good morning, {data.patient.firstName}</Text>
-        <Text style={styles.subtitle}>
-          Here is your personal health overview for today.
-        </Text>
-      </View>
+      <AppHeader
+        title={`Good morning, ${data.patient.firstName}`}
+        subtitle="Here is your personal health overview for today."
+        profileInitial={data.patient.firstName[0]}
+      />
 
       <HealthScoreCard healthScore={data.healthScore} />
 
@@ -93,9 +90,7 @@ export default function HomeScreen() {
         onPress={() => router.push("/labs")}
       />
 
-      <UpcomingConsultationCard
-        consultation={data.upcomingConsultation}
-      />
+      <UpcomingConsultationCard consultation={data.upcomingConsultation} />
     </Screen>
   );
 }

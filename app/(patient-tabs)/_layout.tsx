@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 
 import { colors } from "@/shared/theme/colors";
@@ -26,6 +27,9 @@ export default function PatientTabsLayout() {
         name="home"
         options={{
           title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" color={color} size={size} />
+          ),
         }}
       />
 
@@ -33,6 +37,9 @@ export default function PatientTabsLayout() {
         name="mood"
         options={{
           title: "Mood",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="happy-outline" color={color} size={size} />
+          ),
         }}
       />
 
@@ -40,6 +47,9 @@ export default function PatientTabsLayout() {
         name="cases"
         options={{
           title: "Cases",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubbles-outline" color={color} size={size} />
+          ),
         }}
       />
 
@@ -47,6 +57,9 @@ export default function PatientTabsLayout() {
         name="labs"
         options={{
           title: "Labs",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="flask-outline" color={color} size={size} />
+          ),
         }}
       />
 
@@ -54,6 +67,9 @@ export default function PatientTabsLayout() {
         name="ai-chat"
         options={{
           title: "AI Chat",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="sparkles-outline" color={color} size={size} />
+          ),
         }}
       />
     </Tabs>
