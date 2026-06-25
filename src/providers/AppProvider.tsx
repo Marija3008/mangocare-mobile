@@ -8,7 +8,7 @@ type AppProvidersProps = {
   children: ReactNode;
 };
 
-export function AppProviders({ children }: AppProvidersProps) {
+export function AppProvider({ children }: AppProvidersProps) {
   return (
     <SafeAreaProvider>
       <QueryProvider>
