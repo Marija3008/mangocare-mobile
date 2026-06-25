@@ -17,7 +17,7 @@ import { useAuth } from "@/providers/AuthProvider";
 import { ApiError } from "@/services/api/httpClient";
 
 export default function LoginScreen() {
-  const { login, logout } = useAuth();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,12 +48,15 @@ export default function LoginScreen() {
         return;
       }
 
-      await logout();
+      if(user.roles.includes("Doctor")){
+        router.replace("/(doctor-tabs)/dashboard");
+        return;
+      }
 
       Alert.alert(
-        "Doctor account",
-        "Doctor screens are not connected yet. We will build that area after the patient authentication flow is complete."
-      );
+        "Unsupported account",
+        "This account does not have an available portal."
+      )
     } catch (error) {
       const message =
         error instanceof ApiError

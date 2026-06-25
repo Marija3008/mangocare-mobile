@@ -18,6 +18,10 @@ export default function Index() {
     return <Redirect href="/login" />;
   }
 
+  if (user.roles.includes("Doctor")) {
+    return <Redirect href="/(doctor-tabs)/dashboard" />;
+  }
+
   if (user.roles.includes("Patient")) {
     return <Redirect href="/(patient-tabs)/home" />;
   }
