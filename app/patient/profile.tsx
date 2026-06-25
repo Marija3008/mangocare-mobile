@@ -1,12 +1,12 @@
 import { router } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { MedicalTagsCard } from "@/features/profile/components/MedicalTagsCard";
-import { ProfileHeaderCard } from "@/features/profile/components/profileHeaderCard";
-import { ProfileInfoCard } from "@/features/profile/components/profileInfoCard";
-import { SettingsRow } from "@/features/profile/components/SettingsRow";
 import { useProfile } from "@/features/profile/hooks/useProfile";
 
+import { MedicalTagsCard } from "@/features/profile/components/MedicalTagsCard";
+import { ProfileHeaderCard } from "@/features/profile/components/ProfileHeaderCard";
+import { ProfileInfoCard } from "@/features/profile/components/ProfileInfoCard";
+import { SettingsRow } from "@/features/profile/components/SettingsRow";
 import { Card } from "@/shared/components/Card";
 import { Screen } from "@/shared/components/Screen";
 import { colors } from "@/shared/theme/colors";

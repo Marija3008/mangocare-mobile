@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { AiInsightCard } from "@/features/dashboard/components/AiInsightCard";
 import { HealthScoreCard } from "@/features/dashboard/components/HealthScoreCard";
 import { LatestLabCard } from "@/features/dashboard/components/LatestLabCard";
+import { PrescriptionsCard } from "@/features/dashboard/components/PrescriptionCard";
 import { QuickActions } from "@/features/dashboard/components/QuickActions";
 import { UpcomingConsultationCard } from "@/features/dashboard/components/UpcomingConsultationCard";
 import { useDashboard } from "@/features/dashboard/hooks/useDashboard";
@@ -90,7 +91,22 @@ export default function HomeScreen() {
         onPress={() => router.push("/labs")}
       />
 
-      <UpcomingConsultationCard consultation={data.upcomingConsultation} />
+      <PrescriptionsCard
+        prescriptions={data.prescriptions}
+        onPress={() => router.push("/patient/medications")}
+      />
+
+      <UpcomingConsultationCard
+        consultation={data.upcomingConsultation}
+        onPress={() =>
+          router.push({
+            pathname: "/patient/consultations/[consultationId]",
+            params: {
+              consultationId: data.upcomingConsultation.id,
+            },
+          })
+        }
+      />
     </Screen>
   );
 }

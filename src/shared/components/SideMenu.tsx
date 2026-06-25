@@ -28,10 +28,22 @@ const menuItems: MenuItem[] = [
     href: "/patient/profile",
   },
   {
+    title: "Consultations",
+    subtitle: "Appointments with your healthcare team",
+    icon: "calendar-outline",
+    href: "/patient/consultations",
+  },
+  {
     title: "Clinicals",
     subtitle: "Clinical notes, documents, and care data",
     icon: "medkit-outline",
     href: "/patient/clinicals",
+  },
+  {
+    title: "Documents",
+    subtitle: "Medical files, reports, and uploaded records",
+    icon: "folder-open-outline",
+    href: "/patient/documents",
   },
   {
     title: "Questionnaires",

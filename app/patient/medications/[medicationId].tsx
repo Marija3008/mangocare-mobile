@@ -1,6 +1,6 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { MedicationDoseCard } from "@/features/medications/components/MedicationDoseCard";
 import { useMarkDoseTaken } from "@/features/medications/hooks/useMarkDoseTaken";
@@ -56,8 +56,14 @@ export default function MedicationDetailsScreen() {
     );
   }
 
-  const takenCount = data.dosesToday.filter((dose) => dose.taken).length;
-  const progress = Math.round((takenCount / data.dosesToday.length) * 100);
+  const dosesToday = data.dosesToday ?? [];
+
+const takenCount = dosesToday.filter((dose) => dose.taken).length;
+
+const progress =
+  dosesToday.length > 0
+    ? Math.round((takenCount / dosesToday.length) * 100)
+    : 0;
 
   const handleToggleReminder = () => {
     toggleReminderMutation.mutate(data.id);
@@ -96,12 +102,16 @@ export default function MedicationDetailsScreen() {
               <View>
                 <Text style={styles.label}>Today</Text>
                 <Text style={styles.doseProgress}>
-                  {takenCount}/{data.dosesToday.length} doses taken
+                  {takenCount}/{dosesToday.length} doses taken
                 </Text>
               </View>
 
               <View style={styles.iconCircle}>
-                <Ionicons name="medical-outline" size={24} color={colors.primary} />
+                <Ionicons
+                  name="medical-outline"
+                  size={24}
+                  color={colors.primary}
+                />
               </View>
             </View>
 
@@ -175,7 +185,7 @@ export default function MedicationDetailsScreen() {
 
           <Text style={styles.sectionTitleOutside}>Today's Doses</Text>
 
-          {data.dosesToday.map((dose) => (
+          {dosesToday.map((dose) => (
             <MedicationDoseCard
               key={dose.id}
               dose={dose}

@@ -1,56 +1,70 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Medication } from "@/features/medications/types";
+import { Consultation } from "@/features/consultations/types";
 import { Card } from "@/shared/components/Card";
 import { colors } from "@/shared/theme/colors";
 import { radius } from "@/shared/theme/radius";
 import { spacing } from "@/shared/theme/spacing";
 import { typography } from "@/shared/theme/typography";
 
-type MedicationCardProps = {
-  medication: Medication;
+type ConsultationCardProps = {
+  consultation: Consultation;
   onPress: () => void;
 };
 
-function getStatusMeta(status: Medication["status"]) {
-  if (status === "active") {
+function getTypeIcon(type: Consultation["type"]): keyof typeof Ionicons.glyphMap {
+  if (type === "video") return "videocam-outline";
+  if (type === "audio") return "call-outline";
+  return "chatbubble-ellipses-outline";
+}
+
+function getStatusMeta(status: Consultation["status"]) {
+  if (status === "upcoming") {
     return {
-      label: "Active",
+      label: "Upcoming",
+      color: colors.primary,
+      backgroundColor: colors.primaryLight,
+    };
+  }
+
+  if (status === "completed") {
+    return {
+      label: "Completed",
       color: colors.success,
       backgroundColor: colors.greenSoft,
     };
   }
 
-  if (status === "paused") {
-    return {
-      label: "Paused",
-      color: colors.warning,
-      backgroundColor: colors.orangeSoft,
-    };
-  }
-
   return {
-    label: "Completed",
-    color: colors.textSoft,
-    backgroundColor: colors.blueSoft,
+    label: "Cancelled",
+    color: colors.danger,
+    backgroundColor: colors.redSoft,
   };
 }
 
-export function MedicationCard({ medication, onPress }: MedicationCardProps) {
-  const dosesToday = medication.dosesToday ?? [];
-
-  const nextDose = dosesToday.find((dose) => !dose.taken);
-  const takenCount = dosesToday.filter((dose) => dose.taken).length;
-  const status = getStatusMeta(medication.status);
+export function ConsultationCard({
+  consultation,
+  onPress,
+}: ConsultationCardProps) {
+  const status = getStatusMeta(consultation.status);
 
   return (
     <Pressable onPress={onPress}>
       {({ pressed }) => (
         <Card style={[styles.card, pressed && styles.pressed]}>
           <View style={styles.header}>
+            <View style={styles.iconCircle}>
+              <Ionicons
+                name={getTypeIcon(consultation.type)}
+                size={22}
+                color={colors.primary}
+              />
+            </View>
+
             <View style={styles.titleBlock}>
-              <Text style={styles.name}>{medication.name}</Text>
-              <Text style={styles.dosage}>{medication.dosage}</Text>
+              <Text style={styles.doctor}>{consultation.doctorName}</Text>
+              <Text style={styles.specialty}>{consultation.specialty}</Text>
             </View>
 
             <View
@@ -65,41 +79,17 @@ export function MedicationCard({ medication, onPress }: MedicationCardProps) {
             </View>
           </View>
 
-          <Text style={styles.instructions} numberOfLines={2}>
-            {medication.instructions}
-          </Text>
+          <Text style={styles.reason}>{consultation.reason}</Text>
 
           <View style={styles.footer}>
             <View style={styles.pill}>
               <Text style={styles.pillText}>
-                Next: {nextDose ? nextDose.time : "Done today"}
+                {consultation.date} at {consultation.time}
               </Text>
             </View>
 
             <View style={styles.pill}>
-              <Text style={styles.pillText}>
-                {takenCount}/{dosesToday.length} taken
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.pill,
-                medication.reminderEnabled
-                  ? styles.reminderOn
-                  : styles.reminderOff,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.pillText,
-                  medication.reminderEnabled
-                    ? styles.reminderOnText
-                    : styles.reminderOffText,
-                ]}
-              >
-                {medication.reminderEnabled ? "Reminder on" : "Reminder off"}
-              </Text>
+              <Text style={styles.pillText}>{consultation.type}</Text>
             </View>
           </View>
         </Card>
@@ -117,18 +107,26 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
     gap: spacing.md,
     marginBottom: spacing.md,
+  },
+  iconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
   },
   titleBlock: {
     flex: 1,
   },
-  name: {
+  doctor: {
     ...typography.subtitle,
     color: colors.text,
   },
-  dosage: {
+  specialty: {
     ...typography.caption,
     color: colors.textMuted,
     marginTop: spacing.xs,
@@ -142,7 +140,7 @@ const styles = StyleSheet.create({
   statusText: {
     ...typography.caption,
   },
-  instructions: {
+  reason: {
     ...typography.body,
     color: colors.textMuted,
     lineHeight: 22,
@@ -162,17 +160,6 @@ const styles = StyleSheet.create({
   pillText: {
     ...typography.caption,
     color: colors.primary,
-  },
-  reminderOn: {
-    backgroundColor: colors.greenSoft,
-  },
-  reminderOff: {
-    backgroundColor: colors.orangeSoft,
-  },
-  reminderOnText: {
-    color: colors.success,
-  },
-  reminderOffText: {
-    color: colors.warning,
+    textTransform: "capitalize",
   },
 });

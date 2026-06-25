@@ -1,22 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { UpcomingConsultation } from "@/features/dashboard/types";
+import { PrescriptionSummary } from "@/features/dashboard/types";
 import { Card } from "@/shared/components/Card";
 import { colors } from "@/shared/theme/colors";
 import { radius } from "@/shared/theme/radius";
 import { spacing } from "@/shared/theme/spacing";
 import { typography } from "@/shared/theme/typography";
 
-type UpcomingConsultationCardProps = {
-  consultation: UpcomingConsultation;
+type PrescriptionsCardProps = {
+  prescriptions: PrescriptionSummary[];
   onPress: () => void;
 };
 
-export function UpcomingConsultationCard({
-  consultation,
+export function PrescriptionsCard({
+  prescriptions,
   onPress,
-}: UpcomingConsultationCardProps) {
+}: PrescriptionsCardProps) {
+  const safePrescriptions = prescriptions ?? [];
+  const nextPrescription = safePrescriptions[0];
+
   return (
     <Pressable onPress={onPress}>
       {({ pressed }) => (
@@ -24,30 +27,33 @@ export function UpcomingConsultationCard({
           <View style={styles.header}>
             <View style={styles.iconCircle}>
               <Ionicons
-                name="calendar-outline"
+                name="medical-outline"
                 size={22}
                 color={colors.primary}
               />
             </View>
 
             <View style={styles.titleBlock}>
-              <Text style={styles.label}>Upcoming consultation</Text>
-              <Text style={styles.doctor}>{consultation.doctorName}</Text>
-              <Text style={styles.specialty}>{consultation.specialty}</Text>
-            </View>
-          </View>
-
-          <View style={styles.footer}>
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>
-                {consultation.date} at {consultation.time}
+              <Text style={styles.label}>Medications</Text>
+              <Text style={styles.title}>
+                {safePrescriptions.length} active prescriptions
               </Text>
             </View>
-
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>{consultation.type}</Text>
-            </View>
           </View>
+
+          {nextPrescription ? (
+            <View style={styles.nextDose}>
+              <Text style={styles.nextDoseLabel}>Next dose</Text>
+              <Text style={styles.nextDoseText}>
+                {nextPrescription.name} • {nextPrescription.dosage} at{" "}
+                {nextPrescription.nextDoseTime}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>
+              No medication reminders scheduled.
+            </Text>
+          )}
         </Card>
       )}
     </Pressable>
@@ -81,30 +87,30 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSoft,
   },
-  doctor: {
+  title: {
     ...typography.subtitle,
     color: colors.text,
     marginTop: spacing.xs,
   },
-  specialty: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-  footer: {
-    flexDirection: "row",
-    gap: spacing.sm,
+  nextDose: {
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.lg,
+    padding: spacing.md,
     marginTop: spacing.lg,
   },
-  pill: {
-    backgroundColor: colors.blueSoft,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  pillText: {
+  nextDoseLabel: {
     ...typography.caption,
     color: colors.primary,
-    textTransform: "capitalize",
+    marginBottom: spacing.xs,
+  },
+  nextDoseText: {
+    ...typography.bodyMedium,
+    color: colors.text,
+    lineHeight: 22,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textMuted,
+    marginTop: spacing.lg,
   },
 });
