@@ -1,7 +1,8 @@
 import { router } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { useProfile } from "@/features/profile/hooks/useProfile";
+import { useAuth } from "@/providers/AuthProvider";
 
 import { MedicalTagsCard } from "@/features/profile/components/MedicalTagsCard";
 import { ProfileHeaderCard } from "@/features/profile/components/ProfileHeaderCard";
@@ -15,6 +16,44 @@ import { typography } from "@/shared/theme/typography";
 
 export default function ProfileScreen() {
   const { data, isLoading, isError, refetch } = useProfile();
+  const { logout } = useAuth(); //logout comes from AuthProvide, it removes the saved token and clears the current use; we get it from app's authentication state
+
+  //this func persormes the real logout action
+  const performLogout = async (): Promise<void> => { //removes token/user and redirect to Login
+    try {
+      await logout();
+
+      //replace removes the current Profile screen from navigation history
+      //the user cannot press Back and return to a signed-in screen.
+      router.replace("/login");
+    } catch (err) {
+      console.log(err);
+      Alert.alert("Could not sign out", "Please try again.");
+    }
+  };
+
+  const handleLogout = (): void => { //opens the confirmation popup
+    Alert.alert(
+      "Sign out?",
+      "You will need to sign in again to access your health information.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Sign out",
+          style: "destructive",
+
+          //alert button handlers should not directly return a Promise
+          //void means: start this async function, but do not return its Promise
+          onPress: () => {
+            void performLogout();
+          },
+        },
+      ],
+    );
+  };
 
   if (isLoading) {
     return (
@@ -181,6 +220,13 @@ export default function ProfileScreen() {
               title="Help & Support"
               subtitle="Contact MangoCare support"
               onPress={() => {}}
+            />
+
+            <SettingsRow
+              icon="log-out-outline"
+              title="Sign out"
+              subtitle="Sign out of this device"
+              onPress={handleLogout}
             />
           </Card>
         </ScrollView>
