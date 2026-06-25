@@ -90,6 +90,7 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
   };
 
   return (
+    
     <Modal
       visible={visible}
       transparent

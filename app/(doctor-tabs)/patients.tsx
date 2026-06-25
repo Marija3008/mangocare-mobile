@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { DoctorPatientCard } from "@/features/doctor/components/DoctorPatientCard";
@@ -15,6 +16,18 @@ export default function DoctorPatientsScreen() {
   // During the first render, data may still be undefined.
   // ?? [] gives FlatList a safe empty array until data exists.
   const patients = data ?? [];
+
+  // This screen owns navigation.
+  //
+  // The card only tells us which patient was selected.
+  const handleOpenPatient = (patientId: string): void => {
+    router.push({
+      pathname: "/doctor/patients/[patientId]",
+      params: {
+        patientId,
+      },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -56,7 +69,9 @@ export default function DoctorPatientsScreen() {
         // the list can change after accepting a request.
         keyExtractor={(item) => item.relationshipId}
         // FlatList calls this function once for every patient.
-        renderItem={({ item }) => <DoctorPatientCard doctorPatient={item} />}
+        renderItem={({ item }) => (
+          <DoctorPatientCard doctorPatient={item} onPress={handleOpenPatient} />
+        )}
         // Enables pull-down refresh on phone.
         refreshing={isRefetching}
         onRefresh={() => void refetch()}

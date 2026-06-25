@@ -19,6 +19,7 @@ import {
 export type DoctorServiceContract = {
   getDashboard: () => Promise<DoctorDashboardSummary>;
   getPatients: () => Promise<DoctorPatient[]>;
+  getPatientById: (patientId: string) => Promise<DoctorPatient>;
   getPendingRequests: () => Promise<PatientConnectionRequest[]>;
   acceptRequest: (requestId: string) => Promise<DoctorPatient>;
   rejectRequest: (requestId: string) => Promise<void>;
@@ -42,6 +43,31 @@ function getRequestIndexOrThrow(requestId: string): number {
   }
 
   return requestIndex;
+}
+
+// Finds one patient from the active-patient list.
+//
+// In real company API mode, the backend must enforce this same rule:
+// a doctor should only access patients they are actively connected to.
+function getDoctorPatientOrThrow(patientId: string): DoctorPatient {
+  // find() searches the active-patient array.
+  //
+  // It returns:
+  // - the first matching DoctorPatient object
+  // - undefined when no active patient matches
+  const doctorPatient = MOCK_DOCTOR_PATIENTS.find(
+    (item) => item.patient.id === patientId,
+  );
+
+  // If the patient is not in this doctor's active list,
+  // stop the process with a clear error.
+  if (!doctorPatient) {
+    throw new Error(
+      "This patient could not be found or is not available to this doctor.",
+    );
+  }
+
+  return doctorPatient;
 }
 
 // Converts a pending request into an active doctor-patient relationship.
@@ -72,7 +98,6 @@ function createActivePatientFromRequest(
   };
 }
 
-
 //SERVICE OBJECT
 // The service object used by future hooks and screens.
 //
@@ -101,6 +126,26 @@ export const DoctorService: DoctorServiceContract = {
     // patients.pop()
     // and changing the original mock data source.
     return [...MOCK_DOCTOR_PATIENTS];
+  },
+
+  // Returns one active patient for the Doctor Patient Details screen.
+  getPatientById: async (patientId) => {
+    // Reuse the helper function instead of repeating the search logic.
+    const doctorPatient = getDoctorPatientOrThrow(patientId);
+
+    // Return copied objects instead of the exact mock object.
+    //
+    // The first spread copies the outer DoctorPatient object.
+    // The second spread copies the nested patient object.
+    //
+    // This reduces the risk of a screen accidentally changing
+    // MOCK_DOCTOR_PATIENTS directly.
+    return {
+      ...doctorPatient,
+      patient: {
+        ...doctorPatient.patient,
+      },
+    };
   },
 
   // Returns patient requests that are still waiting for a decision.
