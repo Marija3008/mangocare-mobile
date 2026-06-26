@@ -1,21 +1,32 @@
-// These are the shapes of data returned by doctor-related actions.
+// These are the data shapes returned to Doctor screens and hooks.
 import type {
   DoctorDashboardSummary,
   DoctorPatient,
   PatientConnectionRequest,
 } from "@/features/doctor/types";
 
-//tmporary data source; later these values will come from the company api instead
+// These are shared Care Team shapes used internally by this service.
+import type {
+  CareRelationship,
+  CareTeamPatient,
+} from "@/features/careTeam/types";
+
+// This shared mock store is now the single source of truth.
+//
+// Both the Patient side and Doctor side will eventually read/change
+// the same MOCK_CARE_RELATIONSHIPS array.
 import {
-  MOCK_DOCTOR_PATIENTS,
+  MOCK_CARE_RELATIONSHIPS,
+  MOCK_CARE_TEAM_PATIENTS,
   MOCK_DOCUMENTS_TO_REVIEW_COUNT,
-  MOCK_PATIENT_CONNECTION_REQUESTS,
+  MOCK_PRIMARY_DOCTOR_ID,
   MOCK_UPCOMING_CONSULTATIONS_COUNT,
-} from "@/mocks/doctor.mock";
+} from "@/mocks/careTeam.mock";
 
-//this contract describes what the DoctorService must provide
-//a future api version should expose the same methods, so screens and hooks do not need to change
-
+// This contract describes what DoctorService must provide.
+//
+// Later, we can replace the internal mock logic with company API calls
+// while keeping the same methods for hooks and screens.
 export type DoctorServiceContract = {
   getDashboard: () => Promise<DoctorDashboardSummary>;
   getPatients: () => Promise<DoctorPatient[]>;
@@ -25,167 +36,249 @@ export type DoctorServiceContract = {
   rejectRequest: (requestId: string) => Promise<void>;
 };
 
-// Finds the position of a pending request in the array.
+// Returns all relationships that belong to the current mock doctor.
 //
-// findIndex returns:
-// - 0, 1, 2, etc. when a request is found
-// - -1 when no request matches
-//
-// Throwing an error here stops the app from trying to accept/reject
-// a request that does not exist.
-function getRequestIndexOrThrow(requestId: string): number {
-  const requestIndex = MOCK_PATIENT_CONNECTION_REQUESTS.findIndex(
-    (request) => request.id === requestId,
+// In real API mode, the backend will identify the signed-in doctor
+// from their access token. We will not keep a hardcoded doctor ID then.
+function getRelationshipsForCurrentMockDoctor(): CareRelationship[] {
+  return MOCK_CARE_RELATIONSHIPS.filter(
+    (relationship) => relationship.doctorId === MOCK_PRIMARY_DOCTOR_ID,
   );
-
-  if (requestIndex === -1) {
-    throw new Error("The patient request could not be found.");
-  }
-
-  return requestIndex;
 }
 
-// Finds one patient from the active-patient list.
+// Finds patient information by ID.
 //
-// In real company API mode, the backend must enforce this same rule:
-// a doctor should only access patients they are actively connected to.
-function getDoctorPatientOrThrow(patientId: string): DoctorPatient {
-  // find() searches the active-patient array.
-  //
-  // It returns:
-  // - the first matching DoctorPatient object
-  // - undefined when no active patient matches
-  const doctorPatient = MOCK_DOCTOR_PATIENTS.find(
-    (item) => item.patient.id === patientId,
+// A relationship stores only patientId, so we use this function
+// to find the full patient details in MOCK_CARE_TEAM_PATIENTS.
+function getPatientOrThrow(patientId: string): CareTeamPatient {
+  const patient = MOCK_CARE_TEAM_PATIENTS.find(
+    (item) => item.id === patientId,
   );
 
-  // If the patient is not in this doctor's active list,
-  // stop the process with a clear error.
-  if (!doctorPatient) {
+  if (!patient) {
+    throw new Error("The patient information could not be found.");
+  }
+
+  return patient;
+}
+
+// Converts one Active CareRelationship into the shape used
+// by the Doctor Patients screen and Doctor Patient Details screen.
+function toDoctorPatient(relationship: CareRelationship): DoctorPatient {
+  // This mapper must only receive active relationships.
+  if (relationship.status !== "Active") {
+    throw new Error("Only active relationships can be shown as patients.");
+  }
+
+  const patient = getPatientOrThrow(relationship.patientId);
+
+  return {
+    // relationship.id becomes the ID used by the Doctor side.
+    relationshipId: relationship.id,
+
+    relationshipStatus: relationship.status,
+
+    // For an active relationship, respondedAt is when the Doctor accepted it.
+    // requestedAt is a safe fallback in case mock/API data is incomplete.
+    relationshipStartedAt:
+      relationship.respondedAt ?? relationship.requestedAt,
+
+    // Create a new patient object instead of exposing the exact object
+    // from the central mock store.
+    patient: {
+      ...patient,
+    },
+
+    // A relationship without activity should still show useful UI text.
+    lastActivityLabel:
+      relationship.lastActivityLabel ?? "No recent activity",
+
+    // Add optional properties only when values exist.
+    ...(relationship.latestDocumentLabel
+      ? {
+          latestDocumentLabel: relationship.latestDocumentLabel,
+        }
+      : {}),
+
+    ...(relationship.latestLabLabel
+      ? {
+          latestLabLabel: relationship.latestLabLabel,
+        }
+      : {}),
+  };
+}
+
+// Converts one Pending CareRelationship into the shape used
+// by the Doctor Requests screen.
+function toPatientConnectionRequest(
+  relationship: CareRelationship,
+): PatientConnectionRequest {
+  if (relationship.status !== "Pending") {
+    throw new Error(
+      "Only pending relationships can be shown as patient requests.",
+    );
+  }
+
+  const patient = getPatientOrThrow(relationship.patientId);
+
+  return {
+    // Existing Accept/Reject buttons already pass request.id.
+    // We use the relationship ID as that request ID.
+    id: relationship.id,
+
+    requestedAt: relationship.requestedAt,
+
+    patient: {
+      ...patient,
+    },
+
+    ...(relationship.note
+      ? {
+          note: relationship.note,
+        }
+      : {}),
+  };
+}
+
+// Finds one pending request belonging to the current mock doctor.
+//
+// Accept and Reject may only be performed on a Pending relationship.
+function getPendingRelationshipOrThrow(requestId: string): CareRelationship {
+  const relationship = MOCK_CARE_RELATIONSHIPS.find(
+    (item) =>
+      item.id === requestId &&
+      item.doctorId === MOCK_PRIMARY_DOCTOR_ID &&
+      item.status === "Pending",
+  );
+
+  if (!relationship) {
+    throw new Error(
+      "The patient request could not be found or has already been processed.",
+    );
+  }
+
+  return relationship;
+}
+
+// Finds one Active relationship for a specific patient.
+//
+// This prevents the Doctor Patient Details screen from loading
+// a patient who is not currently part of this doctor's active care team.
+function getActiveRelationshipForPatientOrThrow(
+  patientId: string,
+): CareRelationship {
+  const relationship = MOCK_CARE_RELATIONSHIPS.find(
+    (item) =>
+      item.patientId === patientId &&
+      item.doctorId === MOCK_PRIMARY_DOCTOR_ID &&
+      item.status === "Active",
+  );
+
+  if (!relationship) {
     throw new Error(
       "This patient could not be found or is not available to this doctor.",
     );
   }
 
-  return doctorPatient;
+  return relationship;
 }
 
-// Converts a pending request into an active doctor-patient relationship.
+// SERVICE OBJECT
 //
-// This is a mapper function:
-// input:  PatientConnectionRequest
-// output: DoctorPatient
-function createActivePatientFromRequest(
-  request: PatientConnectionRequest,
-): DoctorPatient {
-  //DoctorPatient props need to be returned
-  return {
-    // Date.now creates a temporary unique relationship ID.
-    relationshipId: `mock-relationship-${Date.now()}`,
-
-    relationshipStatus: "Active",
-
-    // Current date/time in a format that real APIs commonly use.
-    relationshipStartedAt: new Date().toISOString(),
-
-    // We create a new patient object with ...request.patient.
-    // This avoids sharing the exact same nested object reference.
-    patient: {
-      ...request.patient, //to the patient prop, props from PatientConnectionRequest need to be assigned from that same patient
-    },
-
-    lastActivityLabel: "Connection accepted today",
-  };
-}
-
-//SERVICE OBJECT
-// The service object used by future hooks and screens.
-//
-// It currently reads local arrays.
-// Later we can keep this same public interface and replace
-// the internal mock logic with company API calls.
+// It currently works with local mock data.
+// Later, these same methods can call the company API instead.
 export const DoctorService: DoctorServiceContract = {
-  // Returns the small summary used by Doctor Dashboard.
-  //
-  // async makes this return a Promise now.
-  // This matches how a real fetch/API method behaves later.
+  // Returns summary numbers for Doctor Dashboard.
   getDashboard: async () => {
+    const relationships = getRelationshipsForCurrentMockDoctor();
+
     return {
-      activePatientsCount: MOCK_DOCTOR_PATIENTS.length,
-      pendingRequestsCount: MOCK_PATIENT_CONNECTION_REQUESTS.length,
+      activePatientsCount: relationships.filter(
+        (relationship) => relationship.status === "Active",
+      ).length,
+
+      pendingRequestsCount: relationships.filter(
+        (relationship) => relationship.status === "Pending",
+      ).length,
+
       documentsToReviewCount: MOCK_DOCUMENTS_TO_REVIEW_COUNT,
-      upcomingConsultationsCount: MOCK_UPCOMING_CONSULTATIONS_COUNT,
+
+      upcomingConsultationsCount:
+        MOCK_UPCOMING_CONSULTATIONS_COUNT,
     };
   },
 
-  // Returns active patients for the current doctor.
+  // Returns all active patients for the current mock doctor.
   getPatients: async () => {
-    // [...array] makes a new outer array.
-    //
-    // This prevents a screen from accidentally doing something like:
-    // patients.pop()
-    // and changing the original mock data source.
-    return [...MOCK_DOCTOR_PATIENTS];
+    return getRelationshipsForCurrentMockDoctor()
+      .filter((relationship) => relationship.status === "Active")
+
+      // Sort newest accepted patients first.
+      //
+      // filter() already creates a new array, so sort() does not change
+      // the original MOCK_CARE_RELATIONSHIPS array.
+      .sort((first, second) => {
+        const firstDate =
+          first.respondedAt ?? first.requestedAt;
+
+        const secondDate =
+          second.respondedAt ?? second.requestedAt;
+
+        return Date.parse(secondDate) - Date.parse(firstDate);
+      })
+
+      // Convert shared relationship data into Doctor screen data.
+      .map(toDoctorPatient);
   },
 
   // Returns one active patient for the Doctor Patient Details screen.
   getPatientById: async (patientId) => {
-    // Reuse the helper function instead of repeating the search logic.
-    const doctorPatient = getDoctorPatientOrThrow(patientId);
+    const relationship =
+      getActiveRelationshipForPatientOrThrow(patientId);
 
-    // Return copied objects instead of the exact mock object.
-    //
-    // The first spread copies the outer DoctorPatient object.
-    // The second spread copies the nested patient object.
-    //
-    // This reduces the risk of a screen accidentally changing
-    // MOCK_DOCTOR_PATIENTS directly.
-    return {
-      ...doctorPatient,
-      patient: {
-        ...doctorPatient.patient,
-      },
-    };
+    return toDoctorPatient(relationship);
   },
 
-  // Returns patient requests that are still waiting for a decision.
+  // Returns patient connection requests that are still waiting
+  // for the Doctor's decision.
   getPendingRequests: async () => {
-    return [...MOCK_PATIENT_CONNECTION_REQUESTS];
+    return getRelationshipsForCurrentMockDoctor()
+      .filter((relationship) => relationship.status === "Pending")
+
+      // Newest requests appear first.
+      .sort(
+        (first, second) =>
+          Date.parse(second.requestedAt) -
+          Date.parse(first.requestedAt),
+      )
+
+      .map(toPatientConnectionRequest);
   },
 
-  // Accepts one pending request.
+  // Accepts one Pending relationship.
+  //
+  // We do not remove it from the shared array.
+  // We change its status, so the Patient can later see "Active"
+  // and the Doctor can see the patient in My Patients.
   acceptRequest: async (requestId) => {
-    const requestIndex = getRequestIndexOrThrow(requestId);
+    const relationship = getPendingRelationshipOrThrow(requestId);
 
-    // Array access can theoretically return undefined,
-    // so we check before using the request.
-    const request = MOCK_PATIENT_CONNECTION_REQUESTS[requestIndex];
+    relationship.status = "Active";
+    relationship.respondedAt = new Date().toISOString();
+    relationship.lastActivityLabel = "Connection accepted today";
 
-    if (!request) {
-      throw new Error("The patient request could not be loaded.");
-    }
-
-    // First create the active patient relationship.
-    const activePatient = createActivePatientFromRequest(request);
-
-    // unshift adds the new patient at the beginning of the list.
-    // Newest accepted patients appear first.
-    MOCK_DOCTOR_PATIENTS.unshift(activePatient);
-
-    // splice removes one item starting at requestIndex.
-    // This removes the request from the pending list.
-    MOCK_PATIENT_CONNECTION_REQUESTS.splice(requestIndex, 1);
-
-    // Returning this lets a future screen immediately show
-    // the new active patient if needed.
-    return activePatient;
+    return toDoctorPatient(relationship);
   },
 
-  // Rejects one pending request.
+  // Rejects one Pending relationship.
+  //
+  // The relationship remains in the shared array with status "Rejected".
+  // This is important because the Patient must later see that the request
+  // was declined instead of having it disappear with no explanation.
   rejectRequest: async (requestId) => {
-    const requestIndex = getRequestIndexOrThrow(requestId);
+    const relationship = getPendingRelationshipOrThrow(requestId);
 
-    // Remove the request from the pending mock data.
-    MOCK_PATIENT_CONNECTION_REQUESTS.splice(requestIndex, 1);
+    relationship.status = "Rejected";
+    relationship.respondedAt = new Date().toISOString();
   },
 };

@@ -1,22 +1,25 @@
 // A patient-doctor relationship can have one of these states.
 //
 // A union type prevents accidental values such as "Waiting" or "Connected".
-export type CareRelationshipStatus =
-  | "Pending"
-  | "Active"
-  | "Rejected"
-  | "Ended";
+import type {
+  CareRelationshipStatus,
+  CareTeamPatient,
+} from "@/features/careTeam/types";
+
+export type { CareRelationshipStatus } from "@/features/careTeam/types";
 
 // Basic patient information shown to a doctor.
 //
 // This is a summary for lists/cards, not a full medical record.
-export type PatientSummary = {
-  id: string;
-  displayName: string;
-  dateOfBirth: string;
-  gender: string;
-  initials: string;
-};
+
+export type PatientSummary = CareTeamPatient;
+// export type PatientSummary = {
+//   id: string;
+//   displayName: string;
+//   dateOfBirth: string;
+//   gender: string;
+//   initials: string;
+// };
 
 // One active patient shown in the Doctor's “My Patients” area.
 export type DoctorPatient = {
