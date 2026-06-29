@@ -1,27 +1,25 @@
-// useQuery manages async loading, error state, caching, and refetching.
 import { useQuery } from "@tanstack/react-query";
 
-// DoctorService contains the data action.
-// It reads mock data now and will call the company API later.
 import { DoctorService } from "@/features/doctor/services/doctorService";
+import { useAuth } from "@/providers/AuthProvider";
 
-// Unique cache key for pending patient requests.
+// Each Doctor gets a separate pending-requests cache entry.
 //
-// React Query uses this key to know:
-// - what data is cached
-// - what should be refreshed later after Accept/Reject
-export const DOCTOR_PENDING_REQUESTS_QUERY_KEY = [
-  "doctor",
-  "pending-requests",
-] as const;
+// Example:
+// ["doctor", "mock-doctor-001", "pending-requests"]
+export function getDoctorPendingRequestsQueryKey(doctorId: string) {
+  return ["doctor", doctorId, "pending-requests"] as const;
+}
 
-// Custom hook used by the Doctor Requests screen.
 export function useDoctorPendingRequests() {
-  return useQuery({
-    // Where React Query stores this result in its cache.
-    queryKey: DOCTOR_PENDING_REQUESTS_QUERY_KEY,
+  const { user } = useAuth();
 
-    // The async function React Query runs to get the data.
+  const doctorId = user?.id ?? "";
+  const isDoctor = user?.roles.includes("Doctor") ?? false;
+
+  return useQuery({
+    queryKey: getDoctorPendingRequestsQueryKey(doctorId),
     queryFn: DoctorService.getPendingRequests,
+    enabled: Boolean(doctorId) && isDoctor,
   });
 }

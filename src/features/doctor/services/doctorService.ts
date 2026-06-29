@@ -19,9 +19,9 @@ import {
   MOCK_CARE_RELATIONSHIPS,
   MOCK_CARE_TEAM_PATIENTS,
   MOCK_DOCUMENTS_TO_REVIEW_COUNT,
-  MOCK_PRIMARY_DOCTOR_ID,
   MOCK_UPCOMING_CONSULTATIONS_COUNT,
 } from "@/mocks/careTeam.mock";
+import { getCurrentMockUserWithRole } from "@/mocks/mockSession";
 
 // This contract describes what DoctorService must provide.
 //
@@ -40,9 +40,9 @@ export type DoctorServiceContract = {
 //
 // In real API mode, the backend will identify the signed-in doctor
 // from their access token. We will not keep a hardcoded doctor ID then.
-function getRelationshipsForCurrentMockDoctor(): CareRelationship[] {
+function getRelationshipsForDoctor(doctorId: string): CareRelationship[] {
   return MOCK_CARE_RELATIONSHIPS.filter(
-    (relationship) => relationship.doctorId === MOCK_PRIMARY_DOCTOR_ID,
+    (relationship) => relationship.doctorId === doctorId,
   );
 }
 
@@ -51,9 +51,7 @@ function getRelationshipsForCurrentMockDoctor(): CareRelationship[] {
 // A relationship stores only patientId, so we use this function
 // to find the full patient details in MOCK_CARE_TEAM_PATIENTS.
 function getPatientOrThrow(patientId: string): CareTeamPatient {
-  const patient = MOCK_CARE_TEAM_PATIENTS.find(
-    (item) => item.id === patientId,
-  );
+  const patient = MOCK_CARE_TEAM_PATIENTS.find((item) => item.id === patientId);
 
   if (!patient) {
     throw new Error("The patient information could not be found.");
@@ -80,8 +78,7 @@ function toDoctorPatient(relationship: CareRelationship): DoctorPatient {
 
     // For an active relationship, respondedAt is when the Doctor accepted it.
     // requestedAt is a safe fallback in case mock/API data is incomplete.
-    relationshipStartedAt:
-      relationship.respondedAt ?? relationship.requestedAt,
+    relationshipStartedAt: relationship.respondedAt ?? relationship.requestedAt,
 
     // Create a new patient object instead of exposing the exact object
     // from the central mock store.
@@ -90,8 +87,7 @@ function toDoctorPatient(relationship: CareRelationship): DoctorPatient {
     },
 
     // A relationship without activity should still show useful UI text.
-    lastActivityLabel:
-      relationship.lastActivityLabel ?? "No recent activity",
+    lastActivityLabel: relationship.lastActivityLabel ?? "No recent activity",
 
     // Add optional properties only when values exist.
     ...(relationship.latestDocumentLabel
@@ -143,11 +139,14 @@ function toPatientConnectionRequest(
 // Finds one pending request belonging to the current mock doctor.
 //
 // Accept and Reject may only be performed on a Pending relationship.
-function getPendingRelationshipOrThrow(requestId: string): CareRelationship {
+function getPendingRelationshipOrThrow(
+  requestId: string,
+  doctorId: string,
+): CareRelationship {
   const relationship = MOCK_CARE_RELATIONSHIPS.find(
     (item) =>
       item.id === requestId &&
-      item.doctorId === MOCK_PRIMARY_DOCTOR_ID &&
+      item.doctorId === doctorId &&
       item.status === "Pending",
   );
 
@@ -166,11 +165,12 @@ function getPendingRelationshipOrThrow(requestId: string): CareRelationship {
 // a patient who is not currently part of this doctor's active care team.
 function getActiveRelationshipForPatientOrThrow(
   patientId: string,
+  doctorId: string,
 ): CareRelationship {
   const relationship = MOCK_CARE_RELATIONSHIPS.find(
     (item) =>
       item.patientId === patientId &&
-      item.doctorId === MOCK_PRIMARY_DOCTOR_ID &&
+      item.doctorId === doctorId &&
       item.status === "Active",
   );
 
@@ -190,7 +190,8 @@ function getActiveRelationshipForPatientOrThrow(
 export const DoctorService: DoctorServiceContract = {
   // Returns summary numbers for Doctor Dashboard.
   getDashboard: async () => {
-    const relationships = getRelationshipsForCurrentMockDoctor();
+    const doctor = await getCurrentMockUserWithRole("Doctor");
+    const relationships = getRelationshipsForDoctor(doctor.id);
 
     return {
       activePatientsCount: relationships.filter(
@@ -203,38 +204,42 @@ export const DoctorService: DoctorServiceContract = {
 
       documentsToReviewCount: MOCK_DOCUMENTS_TO_REVIEW_COUNT,
 
-      upcomingConsultationsCount:
-        MOCK_UPCOMING_CONSULTATIONS_COUNT,
+      upcomingConsultationsCount: MOCK_UPCOMING_CONSULTATIONS_COUNT,
     };
   },
 
   // Returns all active patients for the current mock doctor.
   getPatients: async () => {
-    return getRelationshipsForCurrentMockDoctor()
-      .filter((relationship) => relationship.status === "Active")
+    const doctor = await getCurrentMockUserWithRole("Doctor");
+    return (
+      getRelationshipsForDoctor(doctor.id)
+        .filter((relationship) => relationship.status === "Active")
 
-      // Sort newest accepted patients first.
-      //
-      // filter() already creates a new array, so sort() does not change
-      // the original MOCK_CARE_RELATIONSHIPS array.
-      .sort((first, second) => {
-        const firstDate =
-          first.respondedAt ?? first.requestedAt;
+        // Sort newest accepted patients first.
+        //
+        // filter() already creates a new array, so sort() does not change
+        // the original MOCK_CARE_RELATIONSHIPS array.
+        .sort((first, second) => {
+          const firstDate = first.respondedAt ?? first.requestedAt;
 
-        const secondDate =
-          second.respondedAt ?? second.requestedAt;
+          const secondDate = second.respondedAt ?? second.requestedAt;
 
-        return Date.parse(secondDate) - Date.parse(firstDate);
-      })
+          return Date.parse(secondDate) - Date.parse(firstDate);
+        })
 
-      // Convert shared relationship data into Doctor screen data.
-      .map(toDoctorPatient);
+        // Convert shared relationship data into Doctor screen data.
+        .map(toDoctorPatient)
+    );
   },
 
   // Returns one active patient for the Doctor Patient Details screen.
   getPatientById: async (patientId) => {
-    const relationship =
-      getActiveRelationshipForPatientOrThrow(patientId);
+    const doctor = await getCurrentMockUserWithRole("Doctor");
+
+    const relationship = getActiveRelationshipForPatientOrThrow(
+      patientId,
+      doctor.id,
+    );
 
     return toDoctorPatient(relationship);
   },
@@ -242,17 +247,19 @@ export const DoctorService: DoctorServiceContract = {
   // Returns patient connection requests that are still waiting
   // for the Doctor's decision.
   getPendingRequests: async () => {
-    return getRelationshipsForCurrentMockDoctor()
-      .filter((relationship) => relationship.status === "Pending")
+    const doctor = await getCurrentMockUserWithRole("Doctor");
+    return (
+      getRelationshipsForDoctor(doctor.id)
+        .filter((relationship) => relationship.status === "Pending")
 
-      // Newest requests appear first.
-      .sort(
-        (first, second) =>
-          Date.parse(second.requestedAt) -
-          Date.parse(first.requestedAt),
-      )
+        // Newest requests appear first.
+        .sort(
+          (first, second) =>
+            Date.parse(second.requestedAt) - Date.parse(first.requestedAt),
+        )
 
-      .map(toPatientConnectionRequest);
+        .map(toPatientConnectionRequest)
+    );
   },
 
   // Accepts one Pending relationship.
@@ -261,7 +268,9 @@ export const DoctorService: DoctorServiceContract = {
   // We change its status, so the Patient can later see "Active"
   // and the Doctor can see the patient in My Patients.
   acceptRequest: async (requestId) => {
-    const relationship = getPendingRelationshipOrThrow(requestId);
+    const doctor = await getCurrentMockUserWithRole("Doctor");
+
+    const relationship = getPendingRelationshipOrThrow(requestId, doctor.id);
 
     relationship.status = "Active";
     relationship.respondedAt = new Date().toISOString();
@@ -276,7 +285,8 @@ export const DoctorService: DoctorServiceContract = {
   // This is important because the Patient must later see that the request
   // was declined instead of having it disappear with no explanation.
   rejectRequest: async (requestId) => {
-    const relationship = getPendingRelationshipOrThrow(requestId);
+    const doctor = await getCurrentMockUserWithRole("Doctor");
+    const relationship = getPendingRelationshipOrThrow(requestId, doctor.id);
 
     relationship.status = "Rejected";
     relationship.respondedAt = new Date().toISOString();

@@ -65,3 +65,28 @@ export type CareRelationship = {
   latestDocumentLabel?: string;
   latestLabLabel?: string;
 };
+
+export type PatientDoctorRelationshipSummary = {
+  relationshipId: string;
+  relationshipStatus: CareRelationshipStatus;
+  requestedAt: string;
+  respondedAt?: string;
+};
+
+export type PatientDoctorConnection =
+  PatientDoctorRelationshipSummary & {
+    doctor: CareTeamDoctor;
+    note?: string;
+  };
+
+export type PatientDoctorDirectoryItem = {
+  doctor: CareTeamDoctor;
+  relationship?: PatientDoctorRelationshipSummary;
+};
+
+export type RequestDoctorConnectionPayload = {
+  doctorId: string;
+  note?: string;
+};
+
+
